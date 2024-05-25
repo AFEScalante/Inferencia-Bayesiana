@@ -1,0 +1,216 @@
+---
+header-includes:
+- \usepackage[american,spanish,mexico]{babel}
+- \usepackage{adjustbox,mathtools,amsmath,caption,geometry,xfrac,placeins,subfig}
+- \usepackage{listings}
+- \providecommand{\P}{\mathbb{P}}
+- \providecommand{\N}{\mathbb{N}}
+- \providecommand{\E}{\mathbb{E}}
+
+output:
+  pdf_document:
+    #pandoc_args: --listings
+keep_tex: yes
+includes:
+      in_header: preamble.tex
+fontsize: 11pt
+urlcolor: blue
+geometry: left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm
+---
+
+\lstset{
+breaklines=true, basicstyle=\ttfamily
+}
+\graphicspath{{/Users/angelescalante/Desktop/Inferencia-Bayesiana/proyecto-final}}
+\newgeometry{left=1cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+\begin{titlepage} 
+	\raggedleft 
+	 \raisebox{120ex}{\makebox[2.4cm][l]{\includegraphics[width=3cm]{unam}}}
+	 \raisebox{1ex}{\adjustbox{left=-2.571cm}{|}{\makebox[2.5cm][l]{\includegraphics[width=2.5cm]{iimas}}}}
+	\rule{1pt}{\textheight}
+	\hspace{0.05\textwidth}
+	\parbox[b]{0.75\textwidth}{ 
+		{\huge\text{Universidad Nacional Autónoma de México}}\\[5\baselineskip]
+		{\Huge\bfseries Proyecto Final \\[1.5\baselineskip]}\\[1\baselineskip] 
+		{\LARGE\bfseries Inferencia Bayesiana \\[2.25\baselineskip]}\\[1\baselineskip]
+		{\LARGE\textsc{ Ángel Escalante \\ [0.5\baselineskip] Shadanna}}
+		
+		\vspace{0.30\textheight}
+		{\Large\textsc{Dr. Eduardo Gutiérrez Peña}}\\
+		\\
+		{\large{\noindent Instituto de Investigaciones en Matem?ticas Aplicadas y en Sistemas}}\\[\baselineskip]}
+\end{titlepage}
+
+\newgeometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
+
+\tableofcontents
+\clearpage
+```{r setup, include=FALSE, echo=FALSE,warning=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(jtools)
+library(effects)
+library(MASS)
+library(vcdExtra)
+library(rstan)
+library(bayesplot)
+```
+
+# Introducción
+
+En la actualidad, una de las principales causas de muerte es por la enfermedad conocida como cáncer. El cáncer comienza en una célula normal que cambia a una célula neoplásica\footnote{Célula con una multiplicación o crecimiento anormal en un tejido del organismo.} a través de varias mutaciones en varios genes a lo largo de mucho tiempo, podrían ser años, de estar expuesto a un agente carcinogenético \footnote{Agente capaz de causar cáncer.}. No obstante, las mutaciones inducidas por los carcinógenos no son la única vía que afecta a la célula, sino que a lo largo de cada división celular se producen errores espontáneos en cada duplicación y los mismos se van acumulando constituyendo un factor intrínseco de riesgo (Martín de Civetta y Civetta, 2011). Por lo cual, es de suma importancia estudiar la cura para esta enfermedad.
+
+En este contexto, el presente trabajo analizará desde una perspectiva bayesiana de un experimento de un tipo de tumor en un grupo de ratas, dadas diferentes dosis de una droga. En otras palabras, estudiar la tasa a la que el riesgo de tumor crece o decrece como función de la dosis.
+
+Para ello, se examinarán tres perspectivas de acuerdo al tipo de información inicial, después se hará la una comparación entre modelos y por último unos comentarios finales.
+
+# Ejercicio 1: Modelo Binomial-Beta
+
+Con el propósito de estudiar la relación entre la dosis y la respuesta, se tienen los datos del experimento en el cuadro 1, donde x representa el nivel de la dosis, mientras que $n_x$ y $y_x$ denotan respectivamente, el número de ratas tratadas y el número de ratas que presentan tumor en cada nivel $(x=0,1,2)$.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{||c |c |c||}
+ \hline
+        $x$ & $n_x$ & $y_x$\\[0.5ex] 
+ \hline\hline
+         0& 14 &4 \\
+         \hline
+         1& 34 &4 \\
+         \hline
+         2& 34 &2 \\[1ex] 
+ \hline        
+    \end{tabular}
+    \caption{Datos}
+\end{table}
+
+
+Sea $\pi_x$ la probabilidad de que una rata en el grupo $x$ desarrolle un tumor. Entonces, se considera el modelo 
+$$Y_x\thicksim Bin(\pi_x,n_x)\qquad (x=0,1,2).$$
+
+Dado que las investigadoras están interesadas en la forma como varía $\pi_x$ en función de la dosis $x$, propusieron el modelo
+
+$$logit(\pi_x)=\alpha+\beta x \qquad (x=0,1,2).$$
+
+El parámetro de interés para las investigadoras es la pendiente $\beta$, pero no cuentan con información inicial sobre su valor.
+
+Entonces, se realizará un resumen de la distribución final de $\beta$ suponiendo una distribución inicial no informativa en la que $\alpha$ y $\beta$ se asumen independientes, con $\alpha \thicksim N(0,1000)$ y $\beta \thicksim N(0,1000)$; esto es, con media 0 y varianza 1000.
+
+\clearpage
+# Ejercicio 2: Modelo Lineal Generalizado
+
+Dado que el tamaño de las muestras en el problema anterior es muy pequeño, y en vista de la falta de información inicial, las investigadoras se dieron a la tarea de buscar información relevante en la literatura. Como producto de esta labor, encontraron datos de 10 estudios similares con ratas de la misma cepa. Desafortunadamente, todos estos datos correspondían a *controles*; es decir, ratas a las que no se les aplicó la droga. Los datos se presentan en la Tabla 2a. Aquí $n_{0,i}$ y $y_{0,i}$ denotan, respectivamente, el número total de ratas y el número de ratas que presentaron un tumor en el i-ésimo estudio ($i=1,2,...,10$).
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{||c |c |c||}
+ \hline
+        $Estudio \quad i$ & $n_{0,i}$ & $y_{0,i}$\\[0.5ex] 
+ \hline\hline
+        1 & 10 &1 \\
+         \hline
+         2&13 &2 \\
+         \hline
+          3& 48 &10 \\
+         \hline
+         4&19 & 5\\
+         \hline
+          5& 20 &0 \\
+         \hline
+         6& 18& 0\\
+         \hline
+          7& 25 & 2\\
+         \hline
+         8&49 &5 \\
+         \hline
+          9& 48 &9 \\
+         \hline
+         10& 19 &4 \\[1ex] 
+ \hline        
+    \end{tabular}
+    \caption{Tabla 2a}
+\end{table}
+
+No satisfechas con estos datos, las investigadoras siguieron buscando trabajos recientes (no publicados). Finalmente encontraron dos reportes muy relevantes, de donde extrajeron los siguientes datos:
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{||c |c |c||}
+ \hline
+        $x$ & $n_{x,11}$ & $y_{x,11}$\\[0.5ex] 
+ \hline\hline
+         0& 7 &3 \\
+         \hline
+         1& 16 &5 \\
+         \hline
+         2& 18 &2 \\[1ex] 
+ \hline        
+    \end{tabular}
+    \caption{Tabla 2b}
+\end{table}
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{||c |c |c||}
+ \hline
+        $x$ & $n_{x,12}$ & $y_{x,12}$\\[0.5ex] 
+ \hline\hline
+         0& 5 &2 \\
+         \hline
+         1& 11 &1 \\
+         \hline
+         2& 9 &0 \\[1ex] 
+ \hline        
+    \end{tabular}
+    \caption{Tabla 2c}
+\end{table}
+
+En vista de que para los datos de la Tabla 2a sólo se recabó información de controles, el nivel de la dosis es $x=0$ en todos esos casos. Por lo tanto el modelo que propusieron para esos datos es 
+
+$$Y_x\thicksim Bin(\pi_{0,1},n_{0,i}),\qquad i=1,2,...,10,$$
+
+donde 
+
+$$logit(\pi_{0,i})=\alpha_i, \qquad i=1,2,...,10.$$
+
+Por otra parte, para los datos de las Tablas 2b y 2c (Estudios 11 y 12), las investigadoras supusieron un modelo de la misma forma que el del problema 1, es decir:
+
+$$Y_x\thicksim Bin(\pi_{x,i},n_{x,i}) \qquad (x=0,1,2);\qquad i=11,12,$$
+
+con 
+
+$$logit(\pi_x)=\alpha_i +\beta_i x \qquad (x=0,1,2); \qquad i=11,12.$$
+
+Para simplificar el análisis en esta etapa, las investigadoras decidieron considerar todos estos estudios suficientemenete similares como para suponer que los datos de las Tablas 1,2a,2b y 2c *provienen de un solo experimento*, de manera que $\alpha_1=\alpha_2=...=\alpha_{12}=\alpha$ y $\beta_{11}=\beta_{12}=\beta$.
+
+Utilizando la misma distribución inicial que en el Ejercicio 1, se proporciona un resumen de la distribución final de $\beta$.
+
+\clearpage
+
+# Ejercicio 3: Modelo Jerárquico
+
+Poco tiempo después, una de las investigadoras tuvo la oportunidad de asistir a un curso de Análisis Bayesiano de Modelos Jerárquicos y convenció al resto del equipo de que ésa es la manera más apropiada de analizar los datos con los que contaban. Específicamente, dado que todos los estudios eran similares, consideraron que podían utilizar los 12 estudios que encontraron en la literatura para complementar la información de su experimento original (ver Tabla 1).
+
+Las investigadoras supusieron entonces que los parámetros ${\alpha_1,\alpha_2,...,\alpha_{12}}$ eran intercambiables, con distribución común $N(\alpha^*,\sigma^2_\alpha)$, y también que los parámetros 
+$\beta,\beta_{11},\beta_{12}$ eran intercambiables con distribución común $N(\beta^*,\sigma^2_\beta)$. Finalmente, tanto para $\alpha^*$ como para $\beta^*$ supusieron una distribución $N(0,100)$, mientras que para $\tau_\alpha=1/\sigma^2_\alpha$ y $\tau_\beta=1/\sigma^2_\beta$ consideraron una distribución $Gamma(0.01,0.01)$.
+
+Se propone un resumen de la distribución final de $\beta$ (la correspondiente al Ejercicio 1) bajo estas condiciones. 
+\clearpage
+
+# Ejercicio 4: Modelos
+
+## Comparación de modelos
+
+## Discusión de resultados
+
+\clearpage
+# Comentarios finales
+\clearpage
+# Referencias
+
+\begin{itemize}
+
+
+    \item Martín de Civetta MT y  Civetta JD.(2011). Carcinogénesis. Salúd Pública Mex;53:405-414.
+    
+\end{itemize}
