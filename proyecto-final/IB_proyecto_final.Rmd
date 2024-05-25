@@ -56,6 +56,8 @@ library(rstan)
 library(bayesplot)
 ```
 
+# Otro título
+
 # Introducción
 
 En la actualidad, una de las principales causas de muerte es por la enfermedad conocida como cáncer. El cáncer comienza en una célula normal que cambia a una célula neoplásica\footnote{Célula con una multiplicación o crecimiento anormal en un tejido del organismo.} a través de varias mutaciones en varios genes a lo largo de mucho tiempo, podrían ser años, de estar expuesto a un agente carcinogenético \footnote{Agente capaz de causar cáncer.}. No obstante, las mutaciones inducidas por los carcinógenos no son la única vía que afecta a la célula, sino que a lo largo de cada división celular se producen errores espontáneos en cada duplicación y los mismos se van acumulando constituyendo un factor intrínseco de riesgo (Martín de Civetta y Civetta, 2011). Por lo cual, es de suma importancia estudiar la cura para esta enfermedad.
