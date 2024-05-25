@@ -33,7 +33,7 @@ breaklines=true, basicstyle=\ttfamily
 		{\huge\text{Universidad Nacional Autónoma de México}}\\[5\baselineskip]
 		{\Huge\bfseries Proyecto Final \\[1.5\baselineskip]}\\[1\baselineskip] 
 		{\LARGE\bfseries Inferencia Bayesiana \\[2.25\baselineskip]}\\[1\baselineskip]
-		{\LARGE\textsc{ Ángel Escalante \\ [0.5\baselineskip] Shadanna}}
+		{\LARGE\textsc{ Ángel Fernando Escalante López \\ [0.5\baselineskip] Shadanna Ortega Hernández}}
 		
 		\vspace{0.30\textheight}
 		{\Large\textsc{Dr. Eduardo Gutiérrez Peña}}\\
