@@ -45,7 +45,8 @@ breaklines=true, basicstyle=\ttfamily
 
 \tableofcontents
 \clearpage
-```{r setup, include=FALSE, echo=FALSE,warning=FALSE}
+
+```{r setup, include=FALSE, echo=FALSE, warning=FALSE}
 library(tidyverse)
 library(kableExtra)
 library(jtools)
@@ -64,7 +65,7 @@ En este contexto, el presente trabajo analizará desde una perspectiva bayesiana
 
 Para ello, se examinarán tres perspectivas de acuerdo al tipo de información inicial, después se hará la una comparación entre modelos y por último unos comentarios finales.
 
-# Ejercicio 1: Modelo Binomial-Beta
+# Pregunta 1:
 
 Con el propósito de estudiar la relación entre la dosis y la respuesta, se tienen los datos del experimento en el cuadro 1, donde x representa el nivel de la dosis, mientras que $n_x$ y $y_x$ denotan respectivamente, el número de ratas tratadas y el número de ratas que presentan tumor en cada nivel $(x=0,1,2)$.
 
@@ -97,6 +98,87 @@ El parámetro de interés para las investigadoras es la pendiente $\beta$, pero 
 Entonces, se realizará un resumen de la distribución final de $\beta$ suponiendo una distribución inicial no informativa en la que $\alpha$ y $\beta$ se asumen independientes, con $\alpha \thicksim N(0,1000)$ y $\beta \thicksim N(0,1000)$; esto es, con media 0 y varianza 1000.
 
 \clearpage
+
+## Respuesta
+
+### Definiendo modelo con `Stan`
+
+```{r}
+model_string <- 
+"
+data {
+  int<lower=0> N;
+  int<lower=0> n[N];
+  int<lower=0> y[N];
+  vector[N] x;
+}
+
+parameters {
+  real alpha;
+  real beta;
+}
+
+model {
+  alpha ~ normal(0, 31.62278);
+  beta ~ normal(0, 31.62278);
+  
+  for (i in 1:N) {
+    y[i] ~ binomial_logit(n[i], alpha + beta * x[i]);
+  }
+}
+"
+```
+
+### Sampleando el modelo con datos del estudio
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# Datos del experimento
+x <- c(0, 1, 2)
+n_x <- c(14, 34, 34)
+y_x <- c(4, 4, 2)
+
+# Preparar los datos para Stan
+data <- list(N = length(x), n = n_x, y = y_x, x = x)
+
+# Compilar el modelo
+modelo_1 <- stan_model(model_code = model_string)
+
+# Ajustar el modelo a los datos
+fit <- sampling(
+  modelo_1,
+  data = data,
+  iter = 5000,
+  warmup = 2000,
+  thin = 3,
+  chains = 4,
+  seed = 123
+)
+
+# Imprimiendo resultados del modelo
+print(fit, pars = c("alpha", "beta"))
+
+# Extraer las muestras de la distribución posterior
+posterior_samples <- extract(fit)
+
+# Visualizar las distribuciones posteriores de alpha y beta
+mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) + 
+  theme_minimal() +
+  labs(
+    title = expression(paste("Distribuciones posteriores de ", alpha, " y ", beta)),
+    subtitle = "Con medianas e intervalos de credibilidad de 95%"
+  )
+
+posterior2 <- extract(fit, inc_warmup = TRUE, permuted = FALSE)
+
+mcmc_trace(
+  posterior2, 
+  pars = c("alpha", "beta"),
+  n_warmup = 667, 
+  facet_args = list(nrow = 2, labeller = label_parsed)
+) + theme_minimal() + facet_text(size = 12)
+```
+
+
 # Ejercicio 2: Modelo Lineal Generalizado
 
 Dado que el tamaño de las muestras en el problema anterior es muy pequeño, y en vista de la falta de información inicial, las investigadoras se dieron a la tarea de buscar información relevante en la literatura. Como producto de esta labor, encontraron datos de 10 estudios similares con ratas de la misma cepa. Desafortunadamente, todos estos datos correspondían a *controles*; es decir, ratas a las que no se les aplicó la droga. Los datos se presentan en la Tabla 2a. Aquí $n_{0,i}$ y $y_{0,i}$ denotan, respectivamente, el número total de ratas y el número de ratas que presentaron un tumor en el i-ésimo estudio ($i=1,2,...,10$).
