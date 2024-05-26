@@ -194,7 +194,7 @@ aquí, el área sombreada representa los samplings del calentamiento ($n=667$). 
 
 ### Posterior de $\alpha$ y $\beta$
 
-A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano. En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $0.95\leq p(\beta<0)$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $\beta \approx 0.98$
+A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano. En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $0.95\leq p(\beta<0)$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0) \approx 0.98$.
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Visualizar las distribuciones posteriores de alpha y beta
