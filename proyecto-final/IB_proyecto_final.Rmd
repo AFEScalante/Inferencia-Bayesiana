@@ -103,7 +103,9 @@ Entonces, se realizará un resumen de la distribución final de $\beta$ suponien
 
 ### Definiendo modelo con `Stan`
 
-```{r}
+La declaración del modelo binomial se hace a través de la función `binomial_logit()` de `Stan`, que recibe como segundo parámetro la inversa de la función logit\footnote{Stan User Guide}, además se usa $\sigma=\sqrt{\sigma^2}= \sqrt{1000}=31.62278$ ya que `Stan` recibe desviación estándar como parámetro y no la varianza.
+
+```{r message=FALSE, warning=FALSE, error=FALSE}
 model_string <- 
 "
 data {
@@ -131,7 +133,14 @@ model {
 
 ### Sampleando el modelo con datos del estudio
 
-```{r echo=FALSE, warning=FALSE, message=FALSE}
+Para este modelo, se utilizaron los siguientes parámetros en `Stan`:
+
+- Número de iteraciones = 5000
+- Warmup (calentamiento) = 2000
+- Thin = 3
+- Número de cadenas = 4
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results = FALSE}
 # Datos del experimento
 x <- c(0, 1, 2)
 n_x <- c(14, 34, 34)
@@ -141,7 +150,7 @@ y_x <- c(4, 4, 2)
 data <- list(N = length(x), n = n_x, y = y_x, x = x)
 
 # Compilar el modelo
-modelo_1 <- stan_model(model_code = model_string)
+modelo_1 <- stan_model(model_code = model_string, verbose = FALSE)
 
 # Ajustar el modelo a los datos
 fit <- sampling(
@@ -151,24 +160,27 @@ fit <- sampling(
   warmup = 2000,
   thin = 3,
   chains = 4,
-  seed = 123
+  seed = 123,
+  verbose = FALSE,
+  open_progress = FALSE
 )
+```
 
+```{r echo=FALSE}
 # Imprimiendo resultados del modelo
 print(fit, pars = c("alpha", "beta"))
+```
 
+### Diagnóstico del modelo    
+
+Notamos que el **Rhat** es exactamente 1 para las cadenas de $\alpha$ y $\beta$, lo cuál representaría convergencia para ambos parámetros. Esto se aprecia de igual manera en forma visual a través de los gráficos de las trazas:
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Extraer las muestras de la distribución posterior
 posterior_samples <- extract(fit)
-
-# Visualizar las distribuciones posteriores de alpha y beta
-mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) + 
-  theme_minimal() +
-  labs(
-    title = expression(paste("Distribuciones posteriores de ", alpha, " y ", beta)),
-    subtitle = "Con medianas e intervalos de credibilidad de 95%"
-  )
-
 posterior2 <- extract(fit, inc_warmup = TRUE, permuted = FALSE)
+
+color_scheme_set("blue")
 
 mcmc_trace(
   posterior2, 
@@ -178,8 +190,25 @@ mcmc_trace(
 ) + theme_minimal() + facet_text(size = 12)
 ```
 
+aquí, el área sombreada representa los samplings del calentamiento ($n=667$). Después de ese periodo, e incluso un poco antes, se aprecia el comportamiento estacionario.
 
-# Ejercicio 2: Modelo Lineal Generalizado
+### Posterior de $\alpha$ y $\beta$
+
+A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano. En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $0.95\leq p(\beta<0)$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $\beta \approx 0.98$
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# Visualizar las distribuciones posteriores de alpha y beta
+mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) + 
+  theme_minimal() +
+  labs(
+    title = expression(paste("Distribuciones posteriores de ", alpha, " y ", beta)),
+    subtitle = "Con medianas e intervalos de credibilidad de 95%"
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+
+# Ejercicio 2
 
 Dado que el tamaño de las muestras en el problema anterior es muy pequeño, y en vista de la falta de información inicial, las investigadoras se dieron a la tarea de buscar información relevante en la literatura. Como producto de esta labor, encontraron datos de 10 estudios similares con ratas de la misma cepa. Desafortunadamente, todos estos datos correspondían a *controles*; es decir, ratas a las que no se les aplicó la droga. Los datos se presentan en la Tabla 2a. Aquí $n_{0,i}$ y $y_{0,i}$ denotan, respectivamente, el número total de ratas y el número de ratas que presentaron un tumor en el i-ésimo estudio ($i=1,2,...,10$).
 
@@ -267,6 +296,152 @@ Para simplificar el análisis en esta etapa, las investigadoras decidieron consi
 
 Utilizando la misma distribución inicial que en el Ejercicio 1, se proporciona un resumen de la distribución final de $\beta$.
 
+## Respuesta
+
+Para abordar este problema, vamos a combinar los datos de todos los estudios (Tablas 1, 2a, 2b y 2c) en un solo modelo y realizar la inferencia bayesiana utilizando Stan. Mantendremos la misma distribución inicial no informativa para 
+$\alpha$ y $\beta$
+$\beta$, y modelaremos los datos de manera que 
+$\alpha$ sea común a todos los estudios, mientras que $\beta$ es específico para los estudios que incluyen diferentes niveles de dosis (estudios 11 y 12).
+
+### Definiendo nuevos modelos en `Stan`
+
+Primero, definimos todos los datos del experimento tal como se presentan en las tablas.
+
+```{r echo=FALSE}
+# Datos del experimento original (Tabla 1)
+x_1 <- c(0, 1, 2)
+n_x_1 <- c(14, 34, 34)
+y_x_1 <- c(4, 4, 2)
+
+# Datos de los estudios de control (Tabla 2a)
+n_0 <- c(10, 13, 48, 19, 20, 18, 25, 49, 48, 19)
+y_0 <- c(1, 2, 10, 5, 0, 0, 2, 5, 9, 4)
+
+# Datos de los estudios 11 (Tabla 2b)
+x_11 <- c(0, 1, 2)
+n_x_11 <- c(7, 16, 18)
+y_x_11 <- c(3, 5, 2)
+
+# Datos de los estudios 12 (Tabla 2c)
+x_12 <- c(0, 1, 2)
+n_x_12 <- c(5, 11, 9)
+y_x_12 <- c(2, 1, 0)
+```
+
+```{r}
+model_string_2 <- "
+data {
+  int<lower=0> N1;      
+  int<lower=0> n1[N1];  
+  int<lower=0> y1[N1];  
+  vector[N1] x1;        
+
+  int<lower=0> N0;      
+  int<lower=0> n0[N0];  
+  int<lower=0> y0[N0];  
+
+  int<lower=0> N11;     
+  int<lower=0> n11[N11];
+  int<lower=0> y11[N11];
+  vector[N11] x11;      
+
+  int<lower=0> N12;      
+  int<lower=0> n12[N12]; 
+  int<lower=0> y12[N12]; 
+  vector[N12] x12;       
+}
+
+parameters {
+  real alpha;
+  real beta; 
+}
+
+model {
+  alpha ~ normal(0, 31.62278);
+  beta ~ normal(0, 31.62278);
+
+  for (i in 1:N1) {
+    y1[i] ~ binomial_logit(n1[i], alpha + beta * x1[i]);
+  }
+
+  for (i in 1:N0) {
+    y0[i] ~ binomial_logit(n0[i], alpha);
+  }
+
+  for (i in 1:N11) {
+    y11[i] ~ binomial_logit(n11[i], alpha + beta * x11[i]);
+  }
+
+  for (i in 1:N12) {
+    y12[i] ~ binomial_logit(n12[i], alpha + beta * x12[i]);
+  }
+}
+"
+```
+
+Aquí, al igual que en el modelo anterior, definimos las distribuciones a priori de los parámetros a estimar: $\alpha \sim N(0, 31.62278)$ y $\beta \sim N(0, 31.62278)$, donde $\sigma=\sqrt{\sigma^2}= \sqrt{1000}=31.62278$ ya que `Stan` recibe desviación estándar como parámetro y no la varianza. Además, definimos 4 verosimilitudes distintas para:
+
+* Datos originales: `y1[i] ~ binomial_logit(n1[i], alpha + beta * x1[i]);`
+* Estudios de controles: `y0[i] ~ binomial_logit(n0[i], alpha);`
+* Estudio 11: `y11[i] ~ binomial_logit(n11[i], alpha + beta * x11[i]);`
+* Estuio 12: `y12[i] ~ binomial_logit(n12[i], alpha + beta * x12[i]);`
+
+Estos son usados en el modelo para estimar las distribuciones de $\alpha$ y $\beta$. 
+
+### Ajustando el modelo con los datos
+
+```{r}
+# Preparar los datos para Stan
+data_combinada <- list(
+  N1 = length(x_1), n1 = n_x_1, y1 = y_x_1, x1 = x_1,
+  N0 = length(n_0), n0 = n_0, y0 = y_0,
+  N11 = length(x_11), n11 = n_x_11, y11 = y_x_11, x11 = x_11,
+  N12 = length(x_12), n12 = n_x_12, y12 = y_x_12, x12 = x_12
+)
+
+# Compilar el modelo
+modelo_combinado <- stan_model(model_code = model_string_2)
+
+# Ajustar el modelo a los datos
+fit_combinado <- sampling(
+  object = modelo_combinado, 
+  data = data_combinada, 
+  iter = 5000,
+  warmup = 2000,
+  chains = 4,
+  thin = 3,
+  seed = 123
+)
+```
+
+```{r}
+# Resumen de los resultados
+print(fit_combinado, pars = c("alpha", "beta"))
+
+# Extraer las muestras de la distribución posterior
+posterior_samples_combinado <- extract(fit_combinado)
+posterior_samples_combinado_2 <- extract(fit_combinado, inc_warmup = TRUE, permuted = FALSE)
+
+# Cambiando el color para diferenciar del modelo anterior
+color_scheme_set("purple")
+
+mcmc_trace(
+  posterior_samples_combinado_2, 
+  pars = c("alpha", "beta"),
+  n_warmup = 667, 
+  facet_args = list(nrow = 2, labeller = label_parsed)
+) + theme_minimal() + facet_text(size = 12)
+
+mcmc_areas(fit_combinado, pars = c("alpha", "beta"), prob = 0.95) + 
+  theme_minimal() +
+  labs(
+    title = expression(paste("Distribuciones posteriores de ", alpha, " y ", beta, " para el modelo combinado")),
+    subtitle = "Con medianas e intervalos de credibilidad de 95%"
+  ) +
+  geom_vline(xintercept = 0, linetype = "dashed")
+```
+
+
 \clearpage
 
 # Ejercicio 3: Modelo Jerárquico
@@ -292,7 +467,6 @@ Se propone un resumen de la distribución final de $\beta$ (la correspondiente a
 
 \begin{itemize}
 
-
     \item Martín de Civetta MT y  Civetta JD.(2011). Carcinogénesis. Salúd Pública Mex;53:405-414.
-    
+
 \end{itemize}
