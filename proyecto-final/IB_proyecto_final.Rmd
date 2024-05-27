@@ -38,7 +38,7 @@ breaklines=true, basicstyle=\ttfamily
 		\vspace{0.30\textheight}
 		{\Large\textsc{Dr. Eduardo Gutiérrez Peña}}\\
 		\\
-		{\large{\noindent Instituto de Investigaciones en Matem?ticas Aplicadas y en Sistemas}}\\[\baselineskip]}
+		{\large{\noindent Instituto de Investigaciones en Matemáticas Aplicadas y en Sistemas}}\\[\baselineskip]}
 \end{titlepage}
 
 \newgeometry{left=3cm,right=3cm,top=2.5cm,bottom=2.5cm}
@@ -53,8 +53,10 @@ library(jtools)
 library(effects)
 library(MASS)
 library(vcdExtra)
+library(patchwork)
 library(rstan)
 library(bayesplot)
+library(RColorBrewer)
 ```
 
 # Introducción
@@ -65,7 +67,7 @@ En este contexto, el presente trabajo analizará desde una perspectiva bayesiana
 
 Para ello, se examinarán tres perspectivas de acuerdo al tipo de información inicial, después se hará la una comparación entre modelos y por último unos comentarios finales.
 
-# Pregunta 1:
+# Ejercicio 1:
 
 Con el propósito de estudiar la relación entre la dosis y la respuesta, se tienen los datos del experimento en el cuadro 1, donde x representa el nivel de la dosis, mientras que $n_x$ y $y_x$ denotan respectivamente, el número de ratas tratadas y el número de ratas que presentan tumor en cada nivel $(x=0,1,2)$.
 
@@ -140,7 +142,7 @@ Para este modelo, se utilizaron los siguientes parámetros en `Stan`:
 - Thin = 3
 - Número de cadenas = 4
 
-```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results = FALSE}
+```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results=FALSE}
 # Datos del experimento
 x <- c(0, 1, 2)
 n_x <- c(14, 34, 34)
@@ -188,13 +190,62 @@ mcmc_trace(
   n_warmup = 667, 
   facet_args = list(nrow = 2, labeller = label_parsed)
 ) + theme_minimal() + facet_text(size = 12)
+
+# Calcular los promedios ergódicos de las muestras
+compute_ergodic_means <- function(samples) {
+  cumsum(samples) / seq_along(samples)
+}
+
+muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
+  alpha_samples <- as.matrix(posterior[, , "alpha"])
+  beta_samples <- as.matrix(posterior[, , "beta"])
+  
+  alpha_ergodic_means <- apply(alpha_samples, 2, compute_ergodic_means)
+  beta_ergodic_means <- apply(beta_samples, 2, compute_ergodic_means)
+  
+  # Crear un data frame para ggplot2
+  iteration <- seq_len(nrow(alpha_ergodic_means))
+  df_alpha <- data.frame(iteration, alpha_ergodic_means)
+  df_beta <- data.frame(iteration, beta_ergodic_means)
+  
+  # Graficar los promedios ergódicos para alpha
+  erg_alpha <- ggplot(df_alpha, aes(x = iteration)) +
+    geom_line(aes(y = chain.1, color = "Cadena 1")) +
+    geom_line(aes(y = chain.2, color = "Cadena 2")) +
+    geom_line(aes(y = chain.3, color = "Cadena 3")) +
+    geom_line(aes(y = chain.4, color = "Cadena 4")) +
+    labs(title = expression(alpha),
+         color = "Cadena",
+         y = "") +
+    theme_minimal() +
+    scale_color_brewer(palette = color_palette) +
+    guides(color = "none")
+  
+  # Graficar los promedios ergódicos para beta
+  erg_beta <- ggplot(df_beta, aes(x = iteration)) +
+    geom_line(aes(y = chain.1, color = "Cadena 1")) +
+    geom_line(aes(y = chain.2, color = "Cadena 2")) +
+    geom_line(aes(y = chain.3, color = "Cadena 3")) +
+    geom_line(aes(y = chain.4, color = "Cadena 4")) +
+    labs(title = expression(beta),
+         x = "Iteración",
+         y = "",
+         color = "Cadena") +
+    theme_minimal() +
+    scale_color_brewer(palette = color_palette) +
+    guides(color = "none")
+  
+  erg_alpha / erg_beta
+}
+
+muestra_promedios_ergodicos(posterior2, "Blues")
 ```
 
-aquí, el área sombreada representa los samplings del calentamiento ($n=667$). Después de ese periodo, e incluso un poco antes, se aprecia el comportamiento estacionario.
+aquí, el área sombreada representa los samplings del calentamiento ($n=667$). Después de ese periodo, e incluso un poco antes, se aprecia el comportamiento estacionario. Este comportamiento se esclarece con los promedios ergódigos.
 
 ### Posterior de $\alpha$ y $\beta$
 
-A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano. En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $0.95\leq p(\beta<0)$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0) \approx 0.98$.
+A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano.
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Visualizar las distribuciones posteriores de alpha y beta
@@ -207,6 +258,27 @@ mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) +
   geom_vline(xintercept = 0, linetype = "dashed")
 ```
 
+#### Intervalo de credibilidad
+
+De la gráfica anterior es fácil ver que, $$E[\beta|x] \approx -0.99$$
+
+El intervalo de credibilidad del $95\%$ de $\beta$ sería de:
+
+$$
+p(1.98\leq\beta\leq-0.057|x) \approx 0.95
+$$
+
+#### Planteamiento de hipótesis
+
+En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $p(\beta<0|x) >0.95$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0 |x) \approx 0.98$.
+
+En un planteamiento de hipótesis como el siguiente
+
+$$
+H_0: \beta < 0 \quad \text{vs} \quad H_a: \beta \geq 0
+$$
+
+la hipótesis $H_0$ tiene mayor plausibilidad.
 
 # Ejercicio 2
 
@@ -299,15 +371,14 @@ Utilizando la misma distribución inicial que en el Ejercicio 1, se proporciona 
 ## Respuesta
 
 Para abordar este problema, vamos a combinar los datos de todos los estudios (Tablas 1, 2a, 2b y 2c) en un solo modelo y realizar la inferencia bayesiana utilizando Stan. Mantendremos la misma distribución inicial no informativa para 
-$\alpha$ y $\beta$
-$\beta$, y modelaremos los datos de manera que 
-$\alpha$ sea común a todos los estudios, mientras que $\beta$ es específico para los estudios que incluyen diferentes niveles de dosis (estudios 11 y 12).
+$\alpha$ y $\beta$, y modelaremos los datos de manera que 
+$\alpha$ y $\beta$ sean comumes a todos los estudios.
 
 ### Definiendo nuevos modelos en `Stan`
 
 Primero, definimos todos los datos del experimento tal como se presentan en las tablas.
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results=FALSE}
 # Datos del experimento original (Tabla 1)
 x_1 <- c(0, 1, 2)
 n_x_1 <- c(14, 34, 34)
@@ -390,7 +461,7 @@ Estos son usados en el modelo para estimar las distribuciones de $\alpha$ y $\be
 
 ### Ajustando el modelo con los datos
 
-```{r}
+```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results=FALSE}
 # Preparar los datos para Stan
 data_combinada <- list(
   N1 = length(x_1), n1 = n_x_1, y1 = y_x_1, x1 = x_1,
@@ -414,10 +485,14 @@ fit_combinado <- sampling(
 )
 ```
 
-```{r}
+```{r echo=FALSE}
 # Resumen de los resultados
 print(fit_combinado, pars = c("alpha", "beta"))
+```
 
+### Diagnóstico del modelo
+
+```{r echo=FALSE}
 # Extraer las muestras de la distribución posterior
 posterior_samples_combinado <- extract(fit_combinado)
 posterior_samples_combinado_2 <- extract(fit_combinado, inc_warmup = TRUE, permuted = FALSE)
@@ -432,6 +507,14 @@ mcmc_trace(
   facet_args = list(nrow = 2, labeller = label_parsed)
 ) + theme_minimal() + facet_text(size = 12)
 
+muestra_promedios_ergodicos(posterior_samples_combinado_2, color_palette = "Purples")
+```
+
+### Posterior de $\alpha$ y $\beta$
+
+A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano incluyendo los 12 estudios adicionales. Se aprecia que $\alpha$ se diferencia de $\beta$ volviéndose más negativo que en el resultado de `Stan` anterior, siendo aquí $E[\alpha|x]\approx-1.635$
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
 mcmc_areas(fit_combinado, pars = c("alpha", "beta"), prob = 0.95) + 
   theme_minimal() +
   labs(
@@ -439,8 +522,30 @@ mcmc_areas(fit_combinado, pars = c("alpha", "beta"), prob = 0.95) +
     subtitle = "Con medianas e intervalos de credibilidad de 95%"
   ) +
   geom_vline(xintercept = 0, linetype = "dashed")
+
+# beta_samples <- posterior_samples_combinado$beta
+# sum(beta_samples < 0) / length(beta_samples)
 ```
 
+#### Intervalo de credibilidad
+
+De la gráfica anterior es fácil calcular el intervalo de credibilidad o high density interval (HDI por sus siglas en inglés).
+
+$$
+P[-0.859 \leq\beta\leq0.0226] \approx 0.95
+$$
+
+#### Planteamiento de hipótesis
+
+Podemos plantear una hipótesis sobre la probabilidad de $\beta$ como lo hicimos en la pregunta anterior. Si las investigadoras se plantearan si existe una relación negativa entre el nivel de dosis y la probabilidad de presentar el tumor para una rata, tendrían que calcular:
+
+$$
+H_0: \beta < 0 \quad \text{vs} \quad H_a: \beta \geq 0
+$$
+
+desde el enfoque bayesiano, esto equivaldría a calcular la plausibilidad de que la $\beta$ sea negativa.
+
+Con este modelo propuesto, observamos que: $p(\beta<0) \approx 0.9665$
 
 \clearpage
 
