@@ -196,17 +196,16 @@ compute_ergodic_means <- function(samples) {
   cumsum(samples) / seq_along(samples)
 }
 
-muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
+muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues", show_alpha = T) {
+  if (show_alpha) {
+    
   alpha_samples <- as.matrix(posterior[, , "alpha"])
-  beta_samples <- as.matrix(posterior[, , "beta"])
   
   alpha_ergodic_means <- apply(alpha_samples, 2, compute_ergodic_means)
-  beta_ergodic_means <- apply(beta_samples, 2, compute_ergodic_means)
   
   # Crear un data frame para ggplot2
   iteration <- seq_len(nrow(alpha_ergodic_means))
   df_alpha <- data.frame(iteration, alpha_ergodic_means)
-  df_beta <- data.frame(iteration, beta_ergodic_means)
   
   # Graficar los promedios ergódicos para alpha
   erg_alpha <- ggplot(df_alpha, aes(x = iteration)) +
@@ -220,6 +219,11 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
     theme_minimal() +
     scale_color_brewer(palette = color_palette) +
     guides(color = "none")
+  }
+  
+  df_beta <- data.frame(iteration, beta_ergodic_means)
+  beta_samples <- as.matrix(posterior[, , "beta"])
+  beta_ergodic_means <- apply(beta_samples, 2, compute_ergodic_means)
   
   # Graficar los promedios ergódicos para beta
   erg_beta <- ggplot(df_beta, aes(x = iteration)) +
@@ -235,7 +239,11 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
     scale_color_brewer(palette = color_palette) +
     guides(color = "none")
   
-  erg_alpha / erg_beta
+  if (show_alpha) {
+    erg_alpha / erg_beta
+  } else {
+    erg_beta
+  }
 }
 
 muestra_promedios_ergodicos(posterior2, "Blues")
@@ -556,8 +564,174 @@ Poco tiempo después, una de las investigadoras tuvo la oportunidad de asistir a
 Las investigadoras supusieron entonces que los parámetros ${\alpha_1,\alpha_2,...,\alpha_{12}}$ eran intercambiables, con distribución común $N(\alpha^*,\sigma^2_\alpha)$, y también que los parámetros 
 $\beta,\beta_{11},\beta_{12}$ eran intercambiables con distribución común $N(\beta^*,\sigma^2_\beta)$. Finalmente, tanto para $\alpha^*$ como para $\beta^*$ supusieron una distribución $N(0,100)$, mientras que para $\tau_\alpha=1/\sigma^2_\alpha$ y $\tau_\beta=1/\sigma^2_\beta$ consideraron una distribución $Gamma(0.01,0.01)$.
 
-Se propone un resumen de la distribución final de $\beta$ (la correspondiente al Ejercicio 1) bajo estas condiciones. 
+Se propone un resumen de la distribución final de $\beta$ (la correspondiente al Ejercicio 1) bajo estas condiciones.
+
 \clearpage
+
+## Respuesta
+
+### Definiendo el modelo en `Stan`
+
+```{r}
+model_string_3 <- "
+data {
+  int<lower=0> N1; 
+  int<lower=0> n1[N1];  
+  int<lower=0> y1[N1];  
+  vector[N1] x1;        
+
+  int<lower=0> N0;      
+  int<lower=0> n0[N0];  
+  int<lower=0> y0[N0];  
+
+  int<lower=0> N11;     
+  int<lower=0> n11[N11];
+  int<lower=0> y11[N11];
+  vector[N11] x11;      
+
+  int<lower=0> N12;     
+  int<lower=0> n12[N12];
+  int<lower=0> y12[N12];
+  vector[N12] x12;      
+}
+
+parameters {
+  real alpha_estrella;        
+  real<lower=0> tau_alpha;
+  vector[12] alpha;  
+
+  real beta_estrella;         
+  real<lower=0> tau_beta; 
+  real beta;              
+  real beta_11;           
+  real beta_12;           
+}
+
+transformed parameters {
+  real sigma_alpha = 1 / sqrt(tau_alpha); 
+  real sigma_beta = 1 / sqrt(tau_beta);
+}
+
+model {
+  alpha_estrella ~ normal(0, 10);
+  beta_estrella ~ normal(0, 10);
+  tau_alpha ~ gamma(0.01, 0.01);
+  tau_beta ~ gamma(0.01, 0.01);
+
+  alpha ~ normal(alpha_estrella, sigma_alpha);
+  beta ~ normal(beta_estrella, sigma_beta);
+  beta_11 ~ normal(beta_estrella, sigma_beta);
+  beta_12 ~ normal(beta_estrella, sigma_beta);
+
+  for (i in 1:N1) {
+    y1[i] ~ binomial_logit(n1[i], alpha[1] + beta * x1[i]);
+  }
+
+  for (i in 1:N0) {
+    y0[i] ~ binomial_logit(n0[i], alpha[i+1]);
+  }
+
+  for (i in 1:N11) {
+    y11[i] ~ binomial_logit(n11[i], alpha[11] + beta_11 * x11[i]);
+  }
+
+  for (i in 1:N12) {
+    y12[i] ~ binomial_logit(n12[i], alpha[12] + beta_12 * x12[i]);
+  }
+}
+"
+```
+
+```{r echo=FALSE}
+# Datos del experimento original (Tabla 1)
+x_1 <- c(0, 1, 2)
+n_x_1 <- c(14, 34, 34)
+y_x_1 <- c(4, 4, 2)
+
+# Datos de los estudios de control (Tabla 2a)
+n_0 <- c(10, 13, 48, 19, 20, 18, 25, 49, 48, 19)
+y_0 <- c(1, 2, 10, 5, 0, 0, 2, 5, 9, 4)
+
+# Datos de los estudios 11 (Tabla 2b)
+x_11 <- c(0, 1, 2)
+n_x_11 <- c(7, 16, 18)
+y_x_11 <- c(3, 5, 2)
+
+# Datos de los estudios 12 (Tabla 2c)
+x_12 <- c(0, 1, 2)
+n_x_12 <- c(5, 11, 9)
+y_x_12 <- c(2, 1, 0)
+
+modelo_jerarquico <- stan_model(model_code = model_string_3)
+```
+
+```{r}
+  # int<lower=0> N1; 
+  # int<lower=0> n1[N1];  
+  # int<lower=0> y1[N1];  
+  # vector[N1] x1;        
+  # 
+  # int<lower=0> N0;      
+  # int<lower=0> n0[N0];  
+  # int<lower=0> y0[N0];  
+  # 
+  # int<lower=0> N11;     
+  # int<lower=0> n11[N11];
+  # int<lower=0> y11[N11];
+  # vector[N11] x11;      
+  # 
+  # int<lower=0> N12;     
+  # int<lower=0> n12[N12];
+  # int<lower=0> y12[N12];
+  # vector[N12] x12;
+
+data_jerarquico <- list(
+  # Estudios original
+  N1 = length(x_1), n1 = n_x_1, y1 = y_x_1, x1 = x_1,
+  
+  # Estudios de ceros
+  N0 = length(n_0), n0 = n_0, y0 = y_0,
+  
+  # Estudios 11
+  N11 = length(x_11), n11 = n_x_11, y11 = y_x_11, x11 = x_11,
+  
+  # Estudio 12
+  N12 = length(x_12), n12 = n_x_12, y12 = y_x_12, x12 = x_12
+)
+
+
+fit_jerarquico <- sampling(
+  object = modelo_jerarquico,
+  data = data_jerarquico,
+  iter = 5000,
+  warmup = 2000,
+  chains = 4,
+  thin = 3,
+  seed = 123
+)
+```
+
+```{r}
+color_scheme_set("green")
+
+posterior_jerarquico <- extract(fit_jerarquico)
+posterior_jerarquico_2 <- extract(fit_jerarquico, inc_warmup = TRUE, permuted = FALSE)
+
+mcmc_trace(
+  posterior_jerarquico_2, 
+  pars = "beta",
+  n_warmup = 667, 
+  facet_args = list(nrow = 2, labeller = label_parsed)
+) + theme_minimal() + facet_text(size = 12) + labs(title = expression(beta))
+
+mcmc_areas(
+  fit_jerarquico, prob = 0.95
+)
+
+mcmc_areas(
+  fit_jerarquico, pars = c("beta", "beta_11", "beta_12"), prob = 0.95
+) + geom_vline(xintercept = 0, linetype = "dashed") + theme_minimal()
+```
 
 # Ejercicio 4: Modelos
 
