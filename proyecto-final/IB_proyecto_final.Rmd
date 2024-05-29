@@ -184,6 +184,9 @@ posterior2 <- extract(fit, inc_warmup = TRUE, permuted = FALSE)
 
 color_scheme_set("blue")
 
+# Aquí va un bplot!!! 🙂
+# Usando `posterior_samples$beta`
+
 mcmc_trace(
   posterior2, 
   pars = c("alpha", "beta"),
@@ -196,9 +199,7 @@ compute_ergodic_means <- function(samples) {
   cumsum(samples) / seq_along(samples)
 }
 
-muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues", show_alpha = T) {
-  if (show_alpha) {
-    
+muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
   alpha_samples <- as.matrix(posterior[, , "alpha"])
   
   alpha_ergodic_means <- apply(alpha_samples, 2, compute_ergodic_means)
@@ -219,7 +220,6 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues", show
     theme_minimal() +
     scale_color_brewer(palette = color_palette) +
     guides(color = "none")
-  }
   
   df_beta <- data.frame(iteration, beta_ergodic_means)
   beta_samples <- as.matrix(posterior[, , "beta"])
@@ -239,11 +239,7 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues", show
     scale_color_brewer(palette = color_palette) +
     guides(color = "none")
   
-  if (show_alpha) {
     erg_alpha / erg_beta
-  } else {
-    erg_beta
-  }
 }
 
 muestra_promedios_ergodicos(posterior2, "Blues")
@@ -508,6 +504,9 @@ posterior_samples_combinado_2 <- extract(fit_combinado, inc_warmup = TRUE, permu
 # Cambiando el color para diferenciar del modelo anterior
 color_scheme_set("purple")
 
+# Aquí va un bplot!!! 🙂
+# Usando `posterior_samples_combinado$beta`
+
 mcmc_trace(
   posterior_samples_combinado_2, 
   pars = c("alpha", "beta"),
@@ -666,25 +665,6 @@ modelo_jerarquico <- stan_model(model_code = model_string_3)
 ```
 
 ```{r}
-  # int<lower=0> N1; 
-  # int<lower=0> n1[N1];  
-  # int<lower=0> y1[N1];  
-  # vector[N1] x1;        
-  # 
-  # int<lower=0> N0;      
-  # int<lower=0> n0[N0];  
-  # int<lower=0> y0[N0];  
-  # 
-  # int<lower=0> N11;     
-  # int<lower=0> n11[N11];
-  # int<lower=0> y11[N11];
-  # vector[N11] x11;      
-  # 
-  # int<lower=0> N12;     
-  # int<lower=0> n12[N12];
-  # int<lower=0> y12[N12];
-  # vector[N12] x12;
-
 data_jerarquico <- list(
   # Estudios original
   N1 = length(x_1), n1 = n_x_1, y1 = y_x_1, x1 = x_1,
@@ -717,16 +697,15 @@ color_scheme_set("green")
 posterior_jerarquico <- extract(fit_jerarquico)
 posterior_jerarquico_2 <- extract(fit_jerarquico, inc_warmup = TRUE, permuted = FALSE)
 
+# Aquí va un bplot!!! 🙂
+# posterior_jerarquico$beta
+
 mcmc_trace(
   posterior_jerarquico_2, 
-  pars = "beta",
+  pars = c("beta", "beta_11", "beta_12"),
   n_warmup = 667, 
   facet_args = list(nrow = 2, labeller = label_parsed)
-) + theme_minimal() + facet_text(size = 12) + labs(title = expression(beta))
-
-mcmc_areas(
-  fit_jerarquico, prob = 0.95
-)
+) + theme_minimal() + facet_text(size = 12)
 
 mcmc_areas(
   fit_jerarquico, pars = c("beta", "beta_11", "beta_12"), prob = 0.95
@@ -734,6 +713,8 @@ mcmc_areas(
 ```
 
 # Ejercicio 4: Modelos
+
+
 
 ## Comparación de modelos
 
