@@ -181,7 +181,7 @@ model {
 "
 ```
 
-### Sampleando el modelo con datos del estudio
+### Muestreando el modelo con datos del estudio
 
 Para este modelo, se utilizaron los siguientes parámetros en `Stan`:
 
