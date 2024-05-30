@@ -236,7 +236,7 @@ print(fit, pars = c("alpha", "beta"))
 
 ### Diagnóstico del modelo    
 
-Notamos que el **Rhat** es exactamente 1 para las cadenas de $\alpha$ y $\beta$, lo cuál representaría convergencia para ambos parámetros. Esto se aprecia de igual manera en forma visual a través de los gráficos de las trazas:
+Con base en la tabla anterior, se puede ver que el **Rhat**\footnote{$\hat{R}$ estima la reducción de la escala potencial. Es decir, para monitorear la convergencia en los algoritmos de simulación MCMC se realiza mediante la estimación de un factor por el cual la escala de la distribución actual del parámetro $\psi$ puede ser reducida suponiendo que se continuan las simulaciones en el límite $n \to \infty$, lo cual va a 1 si $n \to \infty$ (Bravo *et. al.*, 2008).} es exactamente 1 para las cadenas de $\alpha$ y $\beta$, lo cuál representaría convergencia para ambos parámetros. De igual manera, esto se aprecia a través de los gráficos de las trazas:
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Extraer las muestras de la distribución posterior
