@@ -216,10 +216,23 @@ fit <- sampling(
 )
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE, results=FALSE}
 # Imprimiendo resultados del modelo
 print(fit, pars = c("alpha", "beta"))
 ```
+
+\begin{table}[h]
+\begin{tabular}{lcccccccccc}
+\cline{2-11}
+\multicolumn{1}{l|}{}                & \multicolumn{1}{c|}{\textit{mean}} & \multicolumn{1}{c|}{\textit{se\_mean}} & \multicolumn{1}{c|}{\textit{sd}} & \multicolumn{1}{c|}{\textit{2.5\%}} & \multicolumn{1}{c|}{\textit{25\%}} & \multicolumn{1}{c|}{\textit{50\%}} & \multicolumn{1}{c|}{\textit{75\%}} & \multicolumn{1}{c|}{\textit{97.5\%}} & \multicolumn{1}{c|}{\textit{n\_eff}} & \multicolumn{1}{c|}{\textit{Rhat}} \\ \hline
+\multicolumn{1}{|c|}{\textbf{alpha}} & \multicolumn{1}{c|}{-1.01}         & \multicolumn{1}{c|}{0.01}              & \multicolumn{1}{c|}{0.56}        & \multicolumn{1}{c|}{-2.16}          & \multicolumn{1}{c|}{-1.37}         & \multicolumn{1}{c|}{-1}            & \multicolumn{1}{c|}{-0.63}         & \multicolumn{1}{c|}{0.03}            & \multicolumn{1}{c|}{2604}            & \multicolumn{1}{c|}{1}             \\ \hline
+\multicolumn{1}{|c|}{\textbf{beta}}  & \multicolumn{1}{c|}{-0.99}         & \multicolumn{1}{c|}{0.01}              & \multicolumn{1}{c|}{0.5}         & \multicolumn{1}{c|}{-1.98}          & \multicolumn{1}{c|}{-1.31}         & \multicolumn{1}{c|}{-0.98}         & \multicolumn{1}{c|}{-0.64}         & \multicolumn{1}{c|}{-0.06}           & \multicolumn{1}{c|}{2582}            & \multicolumn{1}{c|}{1}             \\ \hline
+                                     & \multicolumn{1}{l}{}               & \multicolumn{1}{l}{}                   & \multicolumn{1}{l}{}             & \multicolumn{1}{l}{}                & \multicolumn{1}{l}{}               & \multicolumn{1}{l}{}               & \multicolumn{1}{l}{}               & \multicolumn{1}{l}{}                 & \multicolumn{1}{l}{}                 & \multicolumn{1}{l}{}              
+\end{tabular}
+\caption{Ajuste del estudio 1}
+\end{table}
+
+
 
 ### Diagnóstico del modelo    
 
