@@ -48,6 +48,7 @@ breaklines=true, basicstyle=\ttfamily
 
 ```{r setup, include=FALSE, echo=FALSE, warning=FALSE}
 library(tidyverse)
+library(ggtext)
 library(kableExtra)
 library(jtools)
 library(effects)
@@ -58,6 +59,50 @@ library(rstan)
 library(bayesplot)
 library(RColorBrewer)
 ```
+
+```{r echo=FALSE}
+### Funciones auxiliares ---
+grafica_ajuste_curva <- function(posterior_samples, alpha_var, beta_var) {
+  alpha_samples <- posterior_samples[[alpha_var]]
+  beta_samples <- posterior_samples[[beta_var]]
+  
+  alpha_mean <- mean(alpha_samples)
+  beta_mean <- mean(beta_samples)
+  
+  q1_alpha <- quantile(alpha_samples, 0.025) |> as.numeric()
+  q1_beta <- quantile(beta_samples, 0.025) |> as.numeric()
+  
+  q2_alpha <- quantile(alpha_samples, 0.975) |> as.numeric()
+  q2_beta <- quantile(beta_samples, 0.975) |> as.numeric()
+  
+  x_seq <- seq(0, 2, length.out = 100)
+  
+  anti_logit <- function(x) {
+    1 / (1 + exp(-x))
+  }
+  
+  curvas_tbl <- tibble(
+    x = x_seq,
+    q1_curva = anti_logit(q1_alpha + q1_beta * x),
+    q2_curva = anti_logit(q2_alpha + q2_beta * x),
+    est_curva = anti_logit(alpha_mean + beta_mean * x)
+  )
+
+  ggplot(curvas_tbl, aes(x = x, y = est_curva)) + 
+    geom_line() +
+    geom_line(aes(x = x, y = q1_curva), color = "red", linetype = "dashed") +
+    geom_line(aes(x = x, y = q2_curva), color = "red", linetype = "dashed") +
+    ylim(c(0, 1)) +
+    theme_minimal() +
+    labs(x = "Nivel de dósis (contínua)", 
+         y = expression(pi[x]),
+         title = "**Curva de ajuste del modelo**",
+         subtitle = "Intervalo de credibilidad del 95%"
+    ) + theme(plot.title = element_markdown())
+}
+
+```
+
 
 # Introducción
 
@@ -184,9 +229,6 @@ posterior2 <- extract(fit, inc_warmup = TRUE, permuted = FALSE)
 
 color_scheme_set("blue")
 
-# Aquí va un bplot!!! 🙂
-# Usando `posterior_samples$beta`
-
 mcmc_trace(
   posterior2, 
   pars = c("alpha", "beta"),
@@ -249,7 +291,7 @@ aquí, el área sombreada representa los samplings del calentamiento ($n=667$). 
 
 ### Posterior de $\alpha$ y $\beta$
 
-A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano.
+A continuación, visualizamos las muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano.
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Visualizar las distribuciones posteriores de alpha y beta
@@ -283,6 +325,12 @@ H_0: \beta < 0 \quad \text{vs} \quad H_a: \beta \geq 0
 $$
 
 la hipótesis $H_0$ tiene mayor plausibilidad.
+
+### Curva de ajuste
+
+```{r echo=FALSE}
+grafica_ajuste_curva(posterior_samples, "alpha", "beta")
+```
 
 # Ejercicio 2
 
@@ -504,9 +552,6 @@ posterior_samples_combinado_2 <- extract(fit_combinado, inc_warmup = TRUE, permu
 # Cambiando el color para diferenciar del modelo anterior
 color_scheme_set("purple")
 
-# Aquí va un bplot!!! 🙂
-# Usando `posterior_samples_combinado$beta`
-
 mcmc_trace(
   posterior_samples_combinado_2, 
   pars = c("alpha", "beta"),
@@ -553,6 +598,12 @@ $$
 desde el enfoque bayesiano, esto equivaldría a calcular la plausibilidad de que la $\beta$ sea negativa.
 
 Con este modelo propuesto, observamos que: $p(\beta<0) \approx 0.9665$
+
+### Curvas de ajuste del modelo
+
+```{r echo=FALSE}
+grafica_ajuste_curva(posterior_samples_combinado, "alpha", "beta")
+```
 
 \clearpage
 
@@ -664,7 +715,7 @@ y_x_12 <- c(2, 1, 0)
 modelo_jerarquico <- stan_model(model_code = model_string_3)
 ```
 
-```{r}
+```{r echo=FALSE, error=FALSE, message=FALSE, results=FALSE}
 data_jerarquico <- list(
   # Estudios original
   N1 = length(x_1), n1 = n_x_1, y1 = y_x_1, x1 = x_1,
@@ -679,7 +730,6 @@ data_jerarquico <- list(
   N12 = length(x_12), n12 = n_x_12, y12 = y_x_12, x12 = x_12
 )
 
-
 fit_jerarquico <- sampling(
   object = modelo_jerarquico,
   data = data_jerarquico,
@@ -691,14 +741,13 @@ fit_jerarquico <- sampling(
 )
 ```
 
-```{r}
+### Diagnósticos del modelo
+
+```{r echo=FALSE}
 color_scheme_set("green")
 
 posterior_jerarquico <- extract(fit_jerarquico)
 posterior_jerarquico_2 <- extract(fit_jerarquico, inc_warmup = TRUE, permuted = FALSE)
-
-# Aquí va un bplot!!! 🙂
-# posterior_jerarquico$beta
 
 mcmc_trace(
   posterior_jerarquico_2, 
@@ -707,14 +756,17 @@ mcmc_trace(
   facet_args = list(nrow = 2, labeller = label_parsed)
 ) + theme_minimal() + facet_text(size = 12)
 
+```
+
+### Posteriores de las $\beta$'s
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 mcmc_areas(
   fit_jerarquico, pars = c("beta", "beta_11", "beta_12"), prob = 0.95
 ) + geom_vline(xintercept = 0, linetype = "dashed") + theme_minimal()
 ```
 
 # Ejercicio 4: Modelos
-
-
 
 ## Comparación de modelos
 
