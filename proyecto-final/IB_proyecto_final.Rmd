@@ -148,9 +148,12 @@ Entonces, se realizará un resumen de la distribución final de $\beta$ suponien
 
 ## Respuesta
 
+De forma analítica el modelado de la relación dosis-respuesta sería mediante un modelo lineal generalizado, en específico, un modelo de regresión logística. Sin embargo, en este trabajo se utilizarán métodos de simulación\footnote{Los métodos de simulación se refieren a la obtención de pseudo-muestras que se originan de una distribución de probabilidad en una computadora, también conocidos como Métodos de Monte Carlo, pues e introduce un nivel de aleatoredad en el análisis (Bravo *et. al.*, 2008).}, en particular, Métodos Monte Carlo de Cadenas de Markov (MCMC)\footnote{ Los Métodos Monte Carlo de Cadenas de Markov tienen como objetivo encontrar una cadena de Markov en el espacio de parámetros, de manera tal que la distribución de equilibrio o estacionaria e la cadena coincida con la distribución posterior (Bravo *et. al.*, 2008).}. Por lo cual, se realizan un número considerable de simulaciones, así como su diagnóstico de la convergencia de los valores obtenidos. Lo anterior, para asegurar que la inferencia se realice sobre simulaciones que son representativas de la distribución de interés. Por último, el modelado se realizará con *Stan*.
+
 ### Definiendo modelo con `Stan`
 
-La declaración del modelo binomial se hace a través de la función `binomial_logit()` de `Stan`, que recibe como segundo parámetro la inversa de la función logit\footnote{Stan User Guide}, además se usa $\sigma=\sqrt{\sigma^2}= \sqrt{1000}=31.62278$ ya que `Stan` recibe desviación estándar como parámetro y no la varianza.
+Considerando el contexto del problema, se selecciona un modelo binomial. Entonces, la declaración del modelo binomial se hace a través de la función `binomial_logit()` de `Stan`, que recibe como segundo parámetro la inversa de la función logit\footnote{Stan User Guide}, además se usa $\sigma=\sqrt{\sigma^2}= \sqrt{1000}=31.62278$ ya que `Stan` recibe desviación estándar como parámetro y no la varianza.
+
 
 ```{r message=FALSE, warning=FALSE, error=FALSE}
 model_string <- 
