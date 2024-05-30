@@ -201,6 +201,7 @@ compute_ergodic_means <- function(samples) {
 
 muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
   alpha_samples <- as.matrix(posterior[, , "alpha"])
+  beta_samples <- as.matrix(posterior[, , "beta"])
   
   alpha_ergodic_means <- apply(alpha_samples, 2, compute_ergodic_means)
   
@@ -221,9 +222,8 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
     scale_color_brewer(palette = color_palette) +
     guides(color = "none")
   
-  df_beta <- data.frame(iteration, beta_ergodic_means)
-  beta_samples <- as.matrix(posterior[, , "beta"])
   beta_ergodic_means <- apply(beta_samples, 2, compute_ergodic_means)
+  df_beta <- data.frame(iteration, beta_ergodic_means)
   
   # Graficar los promedios ergódicos para beta
   erg_beta <- ggplot(df_beta, aes(x = iteration)) +
