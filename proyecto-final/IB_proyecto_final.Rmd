@@ -327,17 +327,17 @@ mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) +
 
 #### Intervalo de credibilidad
 
-De la gráfica anterior es fácil ver que, $$E[\beta|x] \approx -0.99$$
+De la gráfica anterior, es fácil ver que la media de la distribución final de $\beta$ es muy cercana a -1. En específico, la estimación puntual de la esperanza es: $$E[\beta|y] \approx -0.99$$
 
 El intervalo de credibilidad del $95\%$ de $\beta$ sería de:
 
 $$
-p(1.98\leq\beta\leq-0.057|x) \approx 0.95
+p(1.98\leq\beta\leq-0.057|y) \approx 0.95
 $$
 
 #### Planteamiento de hipótesis
 
-En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $p(\beta<0|x) >0.95$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0 |x) \approx 0.98$.
+En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $p(\beta<0|y) >0.95$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0 |y) \approx 0.98$.
 
 En un planteamiento de hipótesis como el siguiente
 
@@ -350,7 +350,8 @@ la hipótesis $H_0$ tiene mayor plausibilidad.
 ### Curva de ajuste
 
 ```{r echo=FALSE}
-grafica_ajuste_curva(posterior_samples, "alpha", "beta")
+grafica_ajuste_curva(posterior_samples, "alpha", "beta")+labs(
+       caption = "Figura 5")
 ```
 
 # Ejercicio 2
