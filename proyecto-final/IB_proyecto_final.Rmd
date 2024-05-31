@@ -319,7 +319,8 @@ mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) +
   theme_minimal() +
   labs(
     title = expression(paste("Distribuciones posteriores de ", alpha, " y ", beta)),
-    subtitle = "Con medianas e intervalos de credibilidad de 95%"
+    subtitle = "Con medianas e intervalos de credibilidad de 95%",
+    caption ="Figura 4",
   ) +
   geom_vline(xintercept = 0, linetype = "dashed")
 ```
