@@ -250,7 +250,7 @@ mcmc_trace(
   pars = c("alpha", "beta"),
   n_warmup = 667, 
   facet_args = list(nrow = 2, labeller = label_parsed)
-) + theme_minimal() + facet_text(size = 12)
+) + theme_minimal() + facet_text(size = 12) + labs(caption=c("Figura 1"))
 
 # Calcular los promedios ergódicos de las muestras
 compute_ergodic_means <- function(samples) {
@@ -274,6 +274,8 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
     geom_line(aes(y = chain.3, color = "Cadena 3")) +
     geom_line(aes(y = chain.4, color = "Cadena 4")) +
     labs(title = expression(alpha),
+         caption ="Figura 2",
+         x = "Iteración",
          color = "Cadena",
          y = "") +
     theme_minimal() +
@@ -290,7 +292,8 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
     geom_line(aes(y = chain.3, color = "Cadena 3")) +
     geom_line(aes(y = chain.4, color = "Cadena 4")) +
     labs(title = expression(beta),
-         x = "Iteración",
+         caption ="Figura 3",
+          x = "Iteración",
          y = "",
          color = "Cadena") +
     theme_minimal() +
