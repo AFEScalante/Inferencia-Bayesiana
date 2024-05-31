@@ -60,49 +60,6 @@ library(bayesplot)
 library(RColorBrewer)
 ```
 
-```{r echo=FALSE}
-### Funciones auxiliares ---
-grafica_ajuste_curva <- function(posterior_samples, alpha_var, beta_var) {
-  alpha_samples <- posterior_samples[[alpha_var]]
-  beta_samples <- posterior_samples[[beta_var]]
-  
-  alpha_mean <- mean(alpha_samples)
-  beta_mean <- mean(beta_samples)
-  
-  q1_alpha <- quantile(alpha_samples, 0.025) |> as.numeric()
-  q1_beta <- quantile(beta_samples, 0.025) |> as.numeric()
-  
-  q2_alpha <- quantile(alpha_samples, 0.975) |> as.numeric()
-  q2_beta <- quantile(beta_samples, 0.975) |> as.numeric()
-  
-  x_seq <- seq(0, 2, length.out = 100)
-  
-  anti_logit <- function(x) {
-    1 / (1 + exp(-x))
-  }
-  
-  curvas_tbl <- tibble(
-    x = x_seq,
-    q1_curva = anti_logit(q1_alpha + q1_beta * x),
-    q2_curva = anti_logit(q2_alpha + q2_beta * x),
-    est_curva = anti_logit(alpha_mean + beta_mean * x)
-  )
-
-  ggplot(curvas_tbl, aes(x = x, y = est_curva)) + 
-    geom_line() +
-    geom_line(aes(x = x, y = q1_curva), color = "red", linetype = "dashed") +
-    geom_line(aes(x = x, y = q2_curva), color = "red", linetype = "dashed") +
-    ylim(c(0, 1)) +
-    theme_minimal() +
-    labs(x = "Nivel de dósis (contínua)", 
-         y = expression(pi[x]),
-         title = "**Curva de ajuste del modelo**",
-         subtitle = "Intervalo de credibilidad del 95%"
-    ) + theme(plot.title = element_markdown())
-}
-
-```
-
 
 # Introducción
 
@@ -146,11 +103,10 @@ Entonces, se realizará un resumen de la distribución final de $\beta$ suponien
 
 \clearpage
 
-## Respuesta
 
 De forma analítica el modelado de la relación dosis-respuesta sería mediante un modelo lineal generalizado, en específico, un modelo de regresión logística. Sin embargo, en este trabajo se utilizarán métodos de simulación\footnote{Los métodos de simulación se refieren a la obtención de pseudo-muestras que se originan de una distribución de probabilidad en una computadora, también conocidos como Métodos de Monte Carlo, pues e introduce un nivel de aleatoredad en el análisis (Bravo *et. al.*, 2008).}, en particular, Métodos Monte Carlo de Cadenas de Markov (MCMC)\footnote{ Los Métodos Monte Carlo de Cadenas de Markov tienen como objetivo encontrar una cadena de Markov en el espacio de parámetros, de manera tal que la distribución de equilibrio o estacionaria e la cadena coincida con la distribución posterior (Bravo *et. al.*, 2008).}. Por lo cual, se realizan un número considerable de simulaciones, así como su diagnóstico de la convergencia de los valores obtenidos. Lo anterior, para asegurar que la inferencia se realice sobre simulaciones que son representativas de la distribución de interés. Por último, el modelado se realizará con *Stan*.
 
-### Definiendo modelo con `Stan`
+## Definiendo modelo con `Stan`
 
 Considerando el contexto del problema, se selecciona un modelo binomial. Entonces, la declaración del modelo binomial se hace a través de la función `binomial_logit()` de `Stan`, que recibe como segundo parámetro la inversa de la función logit\footnote{Stan User Guide}, además se usa $\sigma=\sqrt{\sigma^2}= \sqrt{1000}=31.62278$ ya que `Stan` recibe desviación estándar como parámetro y no la varianza.
 
@@ -181,7 +137,7 @@ model {
 "
 ```
 
-### Muestreando el modelo con datos del estudio
+## Muestreando el modelo con datos del estudio
 
 Para este modelo, se utilizaron los siguientes parámetros en `Stan`:
 
@@ -234,7 +190,7 @@ print(fit, pars = c("alpha", "beta"))
 
 
 
-### Diagnóstico del modelo    
+## Diagnóstico del modelo    
 
 Con base en la tabla anterior, se puede ver que el **Rhat**\footnote{$\hat{R}$ estima la reducción de la escala potencial. Es decir, para monitorear la convergencia en los algoritmos de simulación MCMC se realiza mediante la estimación de un factor por el cual la escala de la distribución actual del parámetro $\psi$ puede ser reducida suponiendo que se continuan las simulaciones en el límite $n \to \infty$, lo cual va a 1 si $n \to \infty$ (Bravo *et. al.*, 2008).} es exactamente 1 para las cadenas de $\alpha$ y $\beta$, lo cuál representaría convergencia para ambos parámetros. De igual manera, esto se aprecia a través de los gráficos de las trazas:
 
@@ -244,6 +200,21 @@ posterior_samples <- extract(fit)
 posterior2 <- extract(fit, inc_warmup = TRUE, permuted = FALSE)
 
 color_scheme_set("blue")
+
+box1 <- 1 / (1 + exp(-1 * (posterior_samples$alpha + posterior_samples$beta * 0)))
+box2 <- 1 / (1 + exp(-1 * (posterior_samples$alpha + posterior_samples$beta * 1)))
+box3 <- 1 / (1 + exp(-1 * (posterior_samples$alpha + posterior_samples$beta * 2)))
+
+data_boxplots <- data.frame(
+  dosis = c(rep(0, 4000), rep(1, 4000), rep(2, 4000)),
+  probs = c(box1, box2, box3)
+)
+
+boxplot_1 <- ggplot(data_boxplots, aes(x = dosis, y = probs, group = dosis)) + 
+  geom_boxplot(fill = "blue", alpha = 0.5) + 
+  theme_minimal() + 
+  labs(x = "Dósis (x)", y = expression(pi[x]))
+boxplot_1
 
 mcmc_trace(
   posterior2, 
@@ -309,7 +280,8 @@ muestra_promedios_ergodicos(posterior2, "Blues")
 En la figura 1, el área sombreada representa las muestras del calentamiento ($n=667$), pues de esta manera se pueden omitir los primeros valores de las cadenas para que salgan de una primera fase de inestabilidad. Después de ese periodo, e incluso un poco antes, se puede ver el comportamiento estacionario. Este comportamiento se esclarece con los promedios ergódigos (veáse figuras 2 y 3).
 
 \clearpage
-### Posterior de $\alpha$ y $\beta$
+
+## Posterior de $\alpha$ y $\beta$
 
 En este contexto, en la figura 4, visualizamos las muestras de las posteriores de $\alpha$ y $\beta$ del modelo.
 
@@ -325,7 +297,7 @@ mcmc_areas(fit, pars = c("alpha", "beta"), prob = 0.95) +
   geom_vline(xintercept = 0, linetype = "dashed")
 ```
 
-#### Intervalo de credibilidad
+### Intervalo de credibilidad
 
 De la gráfica anterior, es fácil ver que la media de la distribución final de $\beta$ es muy cercana a -1. En específico, la estimación puntual de la esperanza es: $$E[\beta|y] \approx -0.99$$
 
@@ -335,7 +307,7 @@ $$
 p(1.98\leq\beta\leq-0.057|y) \approx 0.95
 $$
 
-#### Planteamiento de hipótesis
+### Planteamiento de hipótesis
 
 En particular, para la $\beta$ notamos que el intervalo de credibilidad del $95\%$ se encuentra del lado izquierdo del cero, lo que significa que $p(\beta<0|y) >0.95$. Si plantearamos una hipótesis sobre la $\beta$ diríamos que tenemos evidencia para afirmar que hay un efecto negativo entre los niveles de dósis y la probabilidad de que la rata desarrolle un tumor, de hecho, la probabilidad de que la pendiente $\beta$ sea negativa sería $p(\beta <0 |y) \approx 0.98$.
 
@@ -346,13 +318,6 @@ H_0: \beta < 0 \quad \text{vs} \quad H_a: \beta \geq 0
 $$
 
 la hipótesis $H_0$ tiene mayor plausibilidad.
-
-### Curva de ajuste
-
-```{r echo=FALSE}
-grafica_ajuste_curva(posterior_samples, "alpha", "beta")+labs(
-       caption = "Figura 5")
-```
 
 # Ejercicio 2
 
@@ -442,13 +407,12 @@ Para simplificar el análisis en esta etapa, las investigadoras decidieron consi
 
 Utilizando la misma distribución inicial que en el Ejercicio 1, se proporciona un resumen de la distribución final de $\beta$.
 
-## Respuesta
 
 Para abordar este problema, vamos a combinar los datos de todos los estudios (Tablas 1, 2a, 2b y 2c) en un solo modelo y realizar la inferencia bayesiana utilizando Stan. Mantendremos la misma distribución inicial no informativa para 
 $\alpha$ y $\beta$, y modelaremos los datos de manera que 
 $\alpha$ y $\beta$ sean comumes a todos los estudios.
 
-### Definiendo nuevos modelos en `Stan`
+## Definiendo nuevos modelos en `Stan`
 
 Primero, definimos todos los datos del experimento tal como se presentan en las tablas.
 
@@ -533,7 +497,7 @@ Aquí, al igual que en el modelo anterior, definimos las distribuciones a priori
 
 Estos son usados en el modelo para estimar las distribuciones de $\alpha$ y $\beta$. 
 
-### Ajustando el modelo con los datos
+## Ajustando el modelo con los datos
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, error=FALSE, results=FALSE}
 # Preparar los datos para Stan
@@ -564,7 +528,7 @@ fit_combinado <- sampling(
 print(fit_combinado, pars = c("alpha", "beta"))
 ```
 
-### Diagnóstico del modelo
+## Diagnóstico del modelo
 
 ```{r echo=FALSE}
 # Extraer las muestras de la distribución posterior
@@ -573,6 +537,21 @@ posterior_samples_combinado_2 <- extract(fit_combinado, inc_warmup = TRUE, permu
 
 # Cambiando el color para diferenciar del modelo anterior
 color_scheme_set("purple")
+
+box1 <- 1 / (1 + exp(-1 * (posterior_samples_combinado$alpha + posterior_samples_combinado$beta * 0)))
+box2 <- 1 / (1 + exp(-1 * (posterior_samples_combinado$alpha + posterior_samples_combinado$beta * 1)))
+box3 <- 1 / (1 + exp(-1 * (posterior_samples_combinado$alpha + posterior_samples_combinado$beta * 2)))
+
+data_boxplots <- data.frame(
+  dosis = c(rep(0, 4000), rep(1, 4000), rep(2, 4000)),
+  probs = c(box1, box2, box3)
+)
+
+boxplot_3 <- ggplot(data_boxplots, aes(x = dosis, y = probs, group = dosis)) + 
+  geom_boxplot(fill = "purple", alpha = 0.5) + 
+  theme_minimal() + 
+  labs(x = "Dósis (x)", y = expression(pi[x]))
+boxplot_3
 
 mcmc_trace(
   posterior_samples_combinado_2, 
@@ -584,7 +563,7 @@ mcmc_trace(
 muestra_promedios_ergodicos(posterior_samples_combinado_2, color_palette = "Purples")
 ```
 
-### Posterior de $\alpha$ y $\beta$
+## Posterior de $\alpha$ y $\beta$
 
 A continuación, visualizamos los muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano incluyendo los 12 estudios adicionales. Se aprecia que $\alpha$ se diferencia de $\beta$ volviéndose más negativo que en el resultado de `Stan` anterior, siendo aquí $E[\alpha|x]\approx-1.635$
 
@@ -596,20 +575,23 @@ mcmc_areas(fit_combinado, pars = c("alpha", "beta"), prob = 0.95) +
     subtitle = "Con medianas e intervalos de credibilidad de 95%"
   ) +
   geom_vline(xintercept = 0, linetype = "dashed")
-
-# beta_samples <- posterior_samples_combinado$beta
-# sum(beta_samples < 0) / length(beta_samples)
 ```
 
-#### Intervalo de credibilidad
+### Intervalo de credibilidad
+
+De la gráfica anterior, es fácil ver que la media de la distribución final de β es muy cercana a -1. En específico, la estimación puntual de la esperanza es:
+
+$$
+E[\beta|y] ≈ −0.39
+$$
 
 De la gráfica anterior es fácil calcular el intervalo de credibilidad o high density interval (HDI por sus siglas en inglés).
 
 $$
-P[-0.859 \leq\beta\leq0.0226] \approx 0.95
+P[-0.859 \leq\beta\leq0.0226|y] \approx 0.95
 $$
 
-#### Planteamiento de hipótesis
+### Planteamiento de hipótesis
 
 Podemos plantear una hipótesis sobre la probabilidad de $\beta$ como lo hicimos en la pregunta anterior. Si las investigadoras se plantearan si existe una relación negativa entre el nivel de dosis y la probabilidad de presentar el tumor para una rata, tendrían que calcular:
 
@@ -620,12 +602,6 @@ $$
 desde el enfoque bayesiano, esto equivaldría a calcular la plausibilidad de que la $\beta$ sea negativa.
 
 Con este modelo propuesto, observamos que: $p(\beta<0) \approx 0.9665$
-
-### Curvas de ajuste del modelo
-
-```{r echo=FALSE}
-grafica_ajuste_curva(posterior_samples_combinado, "alpha", "beta")
-```
 
 \clearpage
 
@@ -640,9 +616,7 @@ Se propone un resumen de la distribución final de $\beta$ (la correspondiente a
 
 \clearpage
 
-## Respuesta
-
-### Definiendo el modelo en `Stan`
+## Definiendo el modelo en `Stan`
 
 ```{r}
 model_string_3 <- "
@@ -714,7 +688,7 @@ model {
 "
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 # Datos del experimento original (Tabla 1)
 x_1 <- c(0, 1, 2)
 n_x_1 <- c(14, 34, 34)
@@ -763,7 +737,7 @@ fit_jerarquico <- sampling(
 )
 ```
 
-### Diagnósticos del modelo
+## Diagnósticos del modelo
 
 ```{r echo=FALSE}
 color_scheme_set("green")
@@ -771,16 +745,32 @@ color_scheme_set("green")
 posterior_jerarquico <- extract(fit_jerarquico)
 posterior_jerarquico_2 <- extract(fit_jerarquico, inc_warmup = TRUE, permuted = FALSE)
 
+alpha_jer_post <- sample(posterior_jerarquico$alpha, size = 4000)
+
+box1_orig <- 1 / (1 + exp(-1 * (alpha_jer_post + posterior_jerarquico$beta * 0)))
+box2_orig <- 1 / (1 + exp(-1 * (alpha_jer_post + posterior_jerarquico$beta * 1)))
+box3_orig <- 1 / (1 + exp(-1 * (alpha_jer_post + posterior_jerarquico$beta * 2)))
+
+data_boxplots <- data.frame(
+  dosis = c(rep(0, 4000), rep(1, 4000), rep(2, 4000)),
+  probs = c(box1, box2, box3)
+)
+
+boxplot_2 <- ggplot(data_boxplots, aes(x = dosis, y = probs, group = dosis)) + 
+  geom_boxplot(fill = "green", alpha = 0.5) + 
+  theme_minimal() + 
+  labs(x = "Dósis (x)", y = expression(pi[x]))
+boxplot_2
+
 mcmc_trace(
   posterior_jerarquico_2, 
   pars = c("beta", "beta_11", "beta_12"),
   n_warmup = 667, 
   facet_args = list(nrow = 2, labeller = label_parsed)
 ) + theme_minimal() + facet_text(size = 12)
-
 ```
 
-### Posteriores de las $\beta$'s
+## Posteriores de las $\beta$'s
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 mcmc_areas(
@@ -792,7 +782,41 @@ mcmc_areas(
 
 ## Comparación de modelos
 
+Boxplots del ajuste del modelo (curva de predicción).
+
+```{r echo=FALSE}
+boxplot_1 / boxplot_2 / boxplot_3
+```
+
+En comparativa, notamos que la distribución posterior de la $\beta$ del modelo 2 tiene menor incertidumbre dado que estamos considerando la información de los otros estudios de manera conjunta, es decir, asumimos intercambiabilidad en toda la información. La distribución de la $\beta$ del modelo 1 tiene mayor dispersión dado que hay menor información para el estudio orginal, a comparación del modelo 2. Además, esta beta tiene la media más negativa de los tres modelos. 
+Para el modelo 3, notamos que, si bien hay mayor dispersión que el modelo 2, su media es más grande que la media del modelo 1 y menor que la del modelo 2. Siendo así, una distribución "intermedia" entre el modelo original y el modelo combinado.
+
+```{r echo=FALSE}
+beta_modelos_df <- data.frame(
+  modelos = c(rep("Modelo 1", 4000), rep("Modelo 2", 4000), rep("Modelo 3", 4000)),
+  beta_posteriores = c(posterior_samples$beta,
+                        posterior_samples_combinado$beta,
+                        posterior_jerarquico$beta)
+)
+
+beta_modelos_df |> 
+  ggplot(aes(x = beta_posteriores, fill = modelos)) + 
+  geom_density(alpha = 0.5) + 
+  theme_minimal() +
+  scale_fill_manual(values=c("steelblue", "purple", "green")) +
+  geom_vline(xintercept = mean(posterior_samples$beta), color = "steelblue", linetype = "dashed") +
+  geom_vline(xintercept = mean(posterior_samples_combinado$beta), color = "purple", linetype = "dashed") +
+  geom_vline(xintercept = mean(posterior_jerarquico$beta), color = "green", linetype = "dashed") +
+  labs(fill = "", x = expression(beta), y = "", title = "Comparación de distribuciones posteriores de Beta")
+```
+
 ## Discusión de resultados
+
+Debemos notar que partimos de distibuciones iniciales no informativas, lo cuál se ve en los modelos con mayor información puesto que sus estimaciones tienen menor variabilidad, es decir, se nota el peso de la verosimilitud de los datos. Por otra parte, nos hace mayor sentido una estructura jerárquica que permita ponderar los resultados obtenidos por las investigadoras con los otros estudios (meta-análisis); la metodología para la obtención de los datos en los otros estudios no es del completo conocimiento de las investigadoras y por tanto, podría ser riesgoso asumir que los estudios son suficientemente similares como para condensar su información y sea proveniente de un sólo experimento.
+
+Dicho lo anterior, sugeriríamos a las investigadoras adoptar el modelo jerarquico y buscar mayor información para la definición de las distribuciones a priori.
+
+**Reflexiones adicionales:** Los métodos de Montecarlo de Cadenas de Markov facilitaron en gran medida la definición y obtención de las distribuciones posteriores de los parámetros de interés de las investigadoreas.
 
 \clearpage
 # Comentarios finales
