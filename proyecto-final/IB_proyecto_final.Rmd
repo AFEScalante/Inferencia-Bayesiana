@@ -306,11 +306,12 @@ muestra_promedios_ergodicos <- function(posterior, color_palette = "Blues") {
 muestra_promedios_ergodicos(posterior2, "Blues")
 ```
 
-aquí, el área sombreada representa los samplings del calentamiento ($n=667$). Después de ese periodo, e incluso un poco antes, se aprecia el comportamiento estacionario. Este comportamiento se esclarece con los promedios ergódigos.
+En la figura 1, el área sombreada representa las muestras del calentamiento ($n=667$), pues de esta manera se pueden omitir los primeros valores de las cadenas para que salgan de una primera fase de inestabilidad. Después de ese periodo, e incluso un poco antes, se puede ver el comportamiento estacionario. Este comportamiento se esclarece con los promedios ergódigos (veáse figuras 2 y 3).
 
+\clearpage
 ### Posterior de $\alpha$ y $\beta$
 
-A continuación, visualizamos las muestras de las posteriores de $\alpha$ y $\beta$ con el modelo bayesiano.
+En este contexto, en la figura 4, visualizamos las muestras de las posteriores de $\alpha$ y $\beta$ del modelo.
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 # Visualizar las distribuciones posteriores de alpha y beta
