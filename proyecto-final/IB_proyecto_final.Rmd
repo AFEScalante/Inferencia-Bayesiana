@@ -579,10 +579,10 @@ mcmc_areas(fit_combinado, pars = c("alpha", "beta"), prob = 0.95) +
 
 ### Intervalo de credibilidad
 
-De la gráfica anterior, es fácil ver que la media de la distribución final de β es muy cercana a -1. En específico, la estimación puntual de la esperanza es:
+De la gráfica anterior, es fácil ver que la media de la distribución final de $\beta$ es muy cercana a -1. En específico, la estimación puntual de la esperanza es:
 
 $$
-E[\beta|y] ≈ −0.39
+E[\beta|y] \approx -0.39
 $$
 
 De la gráfica anterior es fácil calcular el intervalo de credibilidad o high density interval (HDI por sus siglas en inglés).
